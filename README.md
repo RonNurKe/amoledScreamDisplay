@@ -1,6 +1,6 @@
 # Windows 硬件监控 → AMOLED 手机仪表盘
 
-用于旧手机重复利用的面板功能：Windows 硬件信息 + Agents 状态、Token 用量、天气、键盘实时键位图。
+用于旧手机重复利用的面板功能：Windows 硬件信息 + Agents 状态（opencode+workbuddy）、Token 用量、天气、键盘实时键位图。
 
 - **后端** Python 3.12（标准库 + psutil + hidapi），采集数据、推 WebSocket、托管前端
 - **前端** 原生 HTML/CSS/JS（无框架、无 CDN），安卓 Chrome / PWA
