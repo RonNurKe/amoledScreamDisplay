@@ -1,0 +1,738 @@
+/* ============================================================
+   style.css - 终端日志流布局
+   单列垂直日志流，全部左对齐；
+   无边框、无卡片、无圆角、无分割线，靠大留白分隔条目；
+   中点 · 作分隔符；等宽字体 + 微光 CRT 质感。
+   ============================================================ */
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);              /* AMOLED 纯黑 */
+  color: var(--text-1);
+  font-family: var(--mono);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html {
+  height: 100%;
+  /* 根字号可由设置面板调整（--fs-root 12~17px），文字用 rem 缩放 */
+  font-size: var(--fs-root, 13px);
+}
+body {
+  font-size: 1rem;
+}
+body {
+  height: 100vh;                      /* 兼容回退 */
+  height: 100dvh;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;        /* 禁止长按系统菜单 */
+  touch-action: manipulation;
+}
+
+/* ============================================================
+   应用骨架
+   ============================================================ */
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: opacity 1.2s ease;   /* 二级熄屏的渐暗/唤醒渐亮 */
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+/* ---- 顶部状态行（终端 prompt 风格） ---- */
+#status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 4px 20px;
+  font-size: 0.92rem;
+  color: var(--text-2);
+  letter-spacing: 1px;
+}
+
+#conn-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+  min-width: 0;                 /* 允许收缩：窄屏时文字省略而不是挤压按钮 */
+}
+
+/* 连接状态：像素方块（一色一语义） */
+.conn-dot {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+.dot-off        { background: var(--text-2); }
+.dot-on         { background: var(--green);  box-shadow: var(--glow-green); }
+.dot-connecting { background: var(--cyan);   box-shadow: var(--glow-cyan); animation: blink 1.1s ease-in-out infinite; }
+.dot-fail       { background: var(--purple); box-shadow: var(--glow-purple); }
+.dot-fallback   { background: var(--blue);   box-shadow: var(--glow-blue); }
+.dot-mock       { background: var(--purple); box-shadow: var(--glow-purple); }
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+#conn-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;          /* 状态文案过长时截断，保证按钮永远完整 */
+}
+
+#status-actions { display: flex; flex: 0 0 auto; }
+
+/* 文本命令按钮（代替图标按钮） */
+.icon-btn {
+  min-height: 44px;
+  padding: 0 4px 0 12px;
+  border: none;
+  background: transparent;
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+  white-space: nowrap;          /* 标签永不折行 */
+  flex: 0 0 auto;               /* 触控目标不被压缩，始终 ≥44px 高 */
+}
+.icon-btn:active { color: var(--text-1); }
+
+/* ---- 面板滑动区 ---- */
+#panels-viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  touch-action: pan-y;
+}
+
+#panels-track {
+  display: flex;
+  height: 100%;
+  will-change: transform;
+}
+
+/* ---- 单个面板 ---- */
+.panel {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 16px 24px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.panel::-webkit-scrollbar { display: none; }
+
+.panel-title {
+  margin: 6px 0 6px;
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 3px;
+  color: var(--text-1);
+  text-shadow: var(--glow-text);
+}
+
+/* 面板头行：面板标题 + 时间日期 + 电量 同一行
+   [标题（超长截断） ......] [time · 日期 · 星期] [bat · xx%] */
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 6px 0 30px;
+  transition: opacity 1.2s ease;   /* 屏保压暗/恢复平滑过渡 */
+}
+.panel-head .panel-title {
+  margin: 0;                 /* 间距改由 .panel-head 统一控制 */
+  flex: 1 1 auto;            /* 标题吸收挤压，超长截断优先 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.panel-head .k { text-transform: uppercase; }
+.panel-head .tl-left {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.panel-head .tl-left .v {
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.panel-head .tl-bat { flex: 0 0 auto; }
+/* 电量数值语义色：默认=青（数据），充电=绿，低电量=紫（须置于 .tl-bat .v 之后覆盖） */
+.panel-head .tl-bat .v {
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+}
+.panel-head .tl-bat .v.green {
+  color: var(--green);
+  text-shadow: var(--glow-green);
+}
+.panel-head .tl-bat .v.purple {
+  color: var(--purple);
+  text-shadow: var(--glow-purple);
+}
+
+/* ---- 底部指示器（像素方块） ---- */
+#indicators {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 6px 20px 10px;
+}
+.indicator-dot {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.indicator-dot::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  background: var(--text-2);
+  opacity: 0.45;
+}
+.indicator-dot.active::after {
+  background: var(--cyan);
+  opacity: 1;
+  box-shadow: var(--glow-cyan);
+}
+
+/* ============================================================
+   日志条目（entry）：像素图标 | 标题行 → 描述行 → 指标行
+   无边框无底色，纯留白分隔
+   ============================================================ */
+
+.entry { margin: 0 0 16px; }
+
+.entry-head {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  font-size: 1rem;
+  color: var(--text-1);
+}
+.entry-head .t {
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow: var(--glow-text);
+}
+
+.entry-desc {
+  margin: 8px 0 0 20px;
+  font-size: 0.92rem;
+  line-height: 1.8;
+  color: var(--text-2);
+}
+
+/* 指标行双列网格：左右成对排布，充分利用横向空间；
+   进度条与 .wide 指标行跨双列（整行） */
+.metrics {
+  margin: 10px 0 0 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 20px;
+  align-items: baseline;
+}
+
+.metric {
+  font-size: 0.92rem;
+  line-height: 2.2;
+  color: var(--text-2);
+  letter-spacing: 0.5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metric.wide { grid-column: 1 / -1; }
+.metric .k { text-transform: uppercase; }
+.metric .v {
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--glow-cyan);
+}
+.metric .v.green  { color: var(--green);  text-shadow: var(--glow-green); }
+.metric .v.purple { color: var(--purple); text-shadow: var(--glow-purple); }
+.metric .v.blue   { color: var(--blue);   text-shadow: var(--glow-blue); }
+.metric .v.dim    { color: var(--text-1); text-shadow: none; }
+
+/* ASCII 进度条行：[▓▓▓▓░░░░] 50%（跨双列整行，字符数随容器宽度动态计算） */
+.bar-line {
+  grid-column: 1 / -1;
+  font-size: 0.92rem;
+  line-height: 2.2;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.bar-line .v {
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+  font-variant-numeric: tabular-nums;
+}
+.bar-line .pct { margin-left: 8px; color: var(--text-1); }
+
+/* ============================================================
+   OpenCode 会话行：每会话独立一行，像素块按状态闪烁
+   ============================================================ */
+
+/* 会话行位于概要条目的 .metrics 双列网格中，跨整行；
+   命名/像素标识/状态文字的屏保亮度由下方规则按元素各自控制 */
+.ag-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 2.6;
+  min-width: 0;
+}
+.ag-row .px { margin-right: 0; }
+
+/* 子会话缩进：行紧跟父会话之后显示并右移一级；
+   作为行容器的 padding-left，不影响内部 flex（像素块/名称/状态）排布；
+   深度 ≥3 共用 lvl-3 缩进（JS 侧已封顶） */
+.metrics .ag-row.lvl-1 { padding-left: 18px; }
+.metrics .ag-row.lvl-2 { padding-left: 36px; }
+.metrics .ag-row.lvl-3 { padding-left: 54px; }
+
+.ag-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  color: var(--text-2);
+  letter-spacing: 0.5px;
+}
+
+.ag-state {
+  flex: 0 0 auto;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+
+/* 来源徽标：OC=OpenCode 插件推送 / WB=WorkBuddy 会话观察，
+   窄胶囊 + 语义色描边，弱化以让位给会话名 */
+.ag-src {
+  flex: 0 0 auto;
+  min-width: 18px;
+  padding: 0 3px;
+  font-size: 0.6rem;
+  line-height: 1.7;
+  letter-spacing: 0.5px;
+  text-align: center;
+  color: var(--text-1);
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  opacity: 0.65;
+}
+.ag-src.src-opencode { color: var(--purple); }
+.ag-src.src-workbuddy { color: var(--cyan); }
+/* 状态语义色（与指标行一色一语义） */
+.ag-state.cyan   { color: var(--cyan);   text-shadow: var(--glow-cyan); }
+.ag-state.green  { color: var(--green);  text-shadow: var(--glow-green); }
+.ag-state.blue   { color: var(--blue);   text-shadow: var(--glow-blue); }
+.ag-state.purple { color: var(--purple); text-shadow: var(--glow-purple); }
+.ag-state.dim    { color: var(--text-1); text-shadow: none; }
+
+/* 超时会话：整体弱化并停用动画 */
+.ag-row.stale .ag-name { opacity: 0.55; }
+.ag-row.stale .pxm { opacity: 0.35; }
+.ag-row.stale .pxm-b,
+.ag-row.stale .pxm-bi { animation: none; }
+
+/* 多块像素图标（会话行专用）：每个小块为两层结构——
+   外层 .pxm-b 负责定位与呼吸缩放（transform），
+   内层 .pxm-bi 负责显示与单块闪烁（opacity），两层动画互不覆盖；
+   十字形 5 块，坐标由 JS 写入 */
+.pxm {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  display: inline-block;
+  margin-right: 20px;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+.pxm-b {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+}
+.pxm-bi {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: currentColor;
+}
+
+/* 非空闲会话的小块呼吸：等时长缩放，相位由 JS 的随机负延迟错开 */
+.pxm-breathe .pxm-b {
+  animation: pxm-scale 1.6s ease-in-out infinite;
+}
+@keyframes pxm-scale {
+  0%, 100% { transform: scale(0.8); }
+  50%      { transform: scale(1.0); }
+}
+
+/* 空闲会话像素块：弱化常亮 */
+.ag-px-idle { color: var(--text-2); opacity: 0.55; }
+
+/* ---- 屏保期间的会话行亮度 ----
+   会话名与像素标识始终保持原亮度（不参与压暗）；
+   状态文字默认压暗，keep-bright 行（非空闲或刚进入空闲 ≤10s）保持原亮度 */
+.ag-state { transition: opacity 1.2s ease; }
+body.screen-saver-mode .ag-row .ag-state { opacity: 0.38; }
+body.screen-saver-mode .ag-row.keep-bright .ag-state { opacity: 1; }
+
+/* ---- 状态切换闪烁（仅屏保期间可见）----
+   空闲↔其他状态/错误跨界时 JS 挂 ag-flash：
+   近白 ↔ 灰蓝交替，1s × 5 = 5s 后自动停止，回到状态本色 */
+body.screen-saver-mode .ag-row.ag-flash .px,
+body.screen-saver-mode .ag-row.ag-flash .ag-state {
+  animation: ag-flash 1s steps(1, end) 5;
+}
+@keyframes ag-flash {
+  0%, 24%   { color: var(--text-1); }
+  25%, 49%  { color: var(--text-2); }
+  50%, 74%  { color: var(--text-1); }
+  75%, 100% { color: var(--text-2); }
+}
+
+/* 像素块闪烁：亮→暗→亮（单次播放 + forwards，闪完停在末帧亮态）
+   节拍 = 周期的一半：上一块到谷值（最暗）时下一块起步 */
+.px-blink-think { animation: ag-breathe 1.4s ease-in-out forwards; }
+@keyframes ag-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+
+.px-blink-read { animation: ag-scan 1.3s steps(1, end) forwards; }
+@keyframes ag-scan {
+  0%        { opacity: 1; }
+  25%       { opacity: 0.15; }
+  45%       { opacity: 1; }
+  60%       { opacity: 0.15; }
+  75%, 100% { opacity: 1; }
+}
+
+.px-blink-write { animation: ag-type 0.55s steps(1, end) forwards; }
+@keyframes ag-type {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.1; }
+}
+
+.px-blink-error { animation: ag-alarm 0.6s steps(1, end) forwards; }
+@keyframes ag-alarm {
+  0%        { opacity: 1; }
+  25%       { opacity: 0.08; }
+  40%       { opacity: 1; }
+  55%       { opacity: 0.08; }
+  70%, 100% { opacity: 1; }
+}
+
+/* 系统级减弱动画偏好：停用全部闪烁与呼吸缩放 */
+@media (prefers-reduced-motion: reduce) {
+  .px-blink-think, .px-blink-read, .px-blink-write, .px-blink-error {
+    animation: none;
+  }
+  .pxm-breathe .pxm-b { animation: none; }
+  body.screen-saver-mode .ag-row.ag-flash .px,
+  body.screen-saver-mode .ag-row.ag-flash .ag-state {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   二级熄屏飘屏小组件：黑屏上沿斜线匀速移动 + 边缘反射反弹
+   （JS rAF 驱动 transform）；仅 screen-off-mode 期间显示；
+   pointer-events:none 让触摸穿透到页面唤醒监听
+   ============================================================ */
+#ss-widget {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 999;
+  pointer-events: none;
+  will-change: transform;
+  font-size: 0.92rem;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  color: var(--text-1);
+}
+body.screen-off-mode #ss-widget { display: block; }
+#ss-widget .d { color: var(--cyan); text-shadow: var(--glow-cyan); }
+#ss-widget .t { font-variant-numeric: tabular-nums; }
+#ss-widget .w { color: var(--text-2); }
+/* 本机电量：与面板时间行同语义色（充电=绿 低电=紫 默认=青） */
+#ss-widget .b { color: var(--cyan); text-shadow: var(--glow-cyan); }
+#ss-widget .b.green { color: var(--green); text-shadow: var(--glow-green); }
+#ss-widget .b.purple { color: var(--purple); text-shadow: var(--glow-purple); }
+
+/* ============================================================
+   设置面板：终端命令风格
+   ============================================================ */
+
+.tbtn {
+  display: block;
+  min-height: 44px;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  letter-spacing: 1px;
+  text-align: left;
+  cursor: pointer;
+}
+.tbtn:active { color: var(--text-1); }
+
+.set-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+}
+.set-row .k { color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* 文本开关：[ ON ] / [ OFF ] */
+.tswitch {
+  min-height: 44px;
+  padding: 10px 0 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.tswitch.off { color: var(--text-2); }
+
+/* 字号调节控件：[-] 13px [+] */
+.set-row .k { font-size: 0.92rem; }
+.fs-ctrl {
+  display: flex;
+  align-items: center;
+}
+.fs-ctrl .fs-val {
+  min-width: 52px;
+  text-align: center;
+  color: var(--text-1);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+.tbtn-inline {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.tbtn-inline:active { color: var(--text-1); }
+
+/* ============================================================
+   横屏适配：日志条目双列排布
+   ============================================================ */
+@media (orientation: landscape) {
+  .panel { padding: 8px 32px 16px; }
+
+  #panel-system-body .entries {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 40px;
+    align-items: start;
+  }
+
+  .entry { margin-bottom: 12px; }
+}
+
+/* 小屏高度保护 */
+@media (max-height: 420px) {
+  .entry { margin-bottom: 10px; }
+}
+
+/* 窄屏状态栏保护（≤380px，例如 360px 机型 + 最大字号）：
+   收紧左右留白，保证 [ RELOAD ] / [ FULL ] / [ SET ] 三个触控目标
+   完整可见不被裁切；状态文案由 ellipsis 截断，不换行。 */
+@media (max-width: 380px) {
+  #status-bar { padding: 4px 10px; }
+}
+
+/* ============================================================
+   键盘面板（Raw Input 实时按键）
+   无圆角、无描边、无卡片：靠明暗对比表达"按下 / 未按下"，
+   AMOLED 上未按下的键几乎不发光，按下瞬间整块点亮。
+   ============================================================ */
+
+.kb-map {
+  --kb-u: 24px;                      /* 1u 宽度，由 JS 按容器宽度计算 */
+  --kb-cw: 14.44;                    /* 画布宽（u） */
+  --kb-ch: 5.20;                     /* 画布高（u），含底部旋转拇指键 */
+  position: relative;
+  width: calc(var(--kb-u) * var(--kb-cw));
+  height: calc(var(--kb-u) * var(--kb-ch));
+  margin: 8px auto 20px;
+}
+
+.kb-key {
+  position: absolute;
+  /* 键帽只占格子的 0.93（实测 38/41），留出键缝；
+     左/上各内缩 (1-0.93)/2 = 0.035 个格子，保证中心不动 */
+  left: calc(var(--kb-u) * (var(--l) + var(--w) * 0.035));
+  top: calc(var(--kb-u) * (var(--t) + var(--h) * 0.035));
+  width: calc(var(--kb-u) * var(--w) * 0.93);
+  height: calc(var(--kb-u) * var(--h) * 0.93);
+  transform: rotate(var(--r, 0deg));   /* 拇指键按实测角度旋转 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d1014;               /* 极暗底：未按下时近乎不发光 */
+  color: #5a6474;
+  font-size: calc(var(--kb-u) * 0.40);
+  line-height: 1;
+  letter-spacing: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: background 0.05s linear, color 0.05s linear;
+}
+
+.kb-key.sm { font-size: calc(var(--kb-u) * 0.31); letter-spacing: -0.3px; }
+.kb-key.xs { font-size: calc(var(--kb-u) * 0.26); letter-spacing: -0.4px; }
+
+/* ---- 键帽上的双层文字 ----
+   主标签：当前层的字符，居中；
+   副标签：层 1 的字符，贴底、小一号、琥珀黄——和主标签的灰蓝拉开色相，
+   像真实键帽上「正面印本位、侧面印上档」的排法。
+   有副标签时主标签上移 0.12u 让位，避免两者压在一起。 */
+.kb-main {
+  display: block;
+  line-height: 1;
+}
+
+.kb-key.has-sub .kb-main {
+  /* 给底部副标签让位，只上移 0.08u —— 移多了同排有/无副标签的键会高低不齐 */
+  transform: translateY(calc(var(--kb-u) * -0.08));
+}
+
+.kb-sub {
+  position: absolute;
+  left: calc(var(--kb-u) * 0.085);    /* 别贴死键边，留一点呼吸 */
+  right: calc(var(--kb-u) * 0.085);
+  bottom: calc(var(--kb-u) * 0.055);
+  display: flex;
+  justify-content: space-between;      /* 两字符：左 = 上档，右 = 本位 */
+  align-items: baseline;
+  font-size: calc(var(--kb-u) * 0.28); /* 比主标签小一号 */
+  line-height: 1;
+  letter-spacing: -0.3px;
+  color: var(--amber);
+  pointer-events: none;
+}
+
+.kb-sub.one { justify-content: center; }        /* 单字符：居中贴底 */
+.kb-sub b { font-weight: 400; }
+.kb-sub b:first-child { color: var(--amber-dim); }  /* 上档符号再暗一档 */
+
+.kb-key.sm .kb-sub { font-size: calc(var(--kb-u) * 0.24); }
+.kb-key.xs .kb-sub { font-size: calc(var(--kb-u) * 0.21); }
+
+/* 按下时底色变青，副标签跟着转成半透明黑，不然黄配青会糊 */
+.kb-key.on .kb-sub,
+.kb-key.on .kb-sub b:first-child { color: rgba(0, 0, 0, 0.55); }
+
+/* 当前层上是死键（KC_NO）：保留层 0 标签但压得更暗，一眼看出这层它不干活 */
+.kb-key.kb-dead {
+  color: #2f353f;
+  background: #080a0d;
+}
+
+.kb-key.on {
+  background: var(--cyan);
+  color: #000000;
+  box-shadow: var(--glow-cyan);
+}
+
+/* 当前按下 / 最近按键 */
+.kb-line {
+  font-size: 0.92rem;
+  line-height: 2.2;
+  color: var(--text-2);
+  letter-spacing: 0.5px;
+  min-height: 2.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kb-line .k { text-transform: uppercase; }
+.kb-line .v {
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+}
+.kb-line .v.dim { color: var(--text-2); text-shadow: none; }
+
+.kb-log {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 20px;
+}
+
+.kb-tag {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 1px 6px;
+  background: #0b0d10;
+  color: var(--text-2);
+  letter-spacing: 0.5px;
+}
+.kb-tag.newest {
+  background: var(--cyan);
+  color: #000000;
+  box-shadow: var(--glow-cyan);
+}
+
+/* 屏保压暗：与新面板的非 entry 区块保持一致 */
+body.screen-saver-mode .panel-body > .kb-map,
+body.screen-saver-mode .panel-body > .kb-line,
+body.screen-saver-mode .panel-body > .kb-log {
+  opacity: 0.38;
+}
+
+/* 键盘面板告警（如后端运行在会话 0，收不到交互桌面按键） */
+.kb-warn {
+  color: var(--purple);
+  text-shadow: var(--glow-purple);
+}

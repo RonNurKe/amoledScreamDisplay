@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <!-- 移动端视口：禁止缩放，覆盖刘海屏安全区域 -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0,
+                 user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <!-- 允许添加到安卓主屏幕后以独立应用外观打开 -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Windows 硬件监控 AMOLED 手机仪表盘">
+
+  <title>硬件监控仪表盘</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- 主题变量（颜色集中管理，方便换肤） -->
+  <link rel="stylesheet" href="theme.css?v=43">
+  <!-- 布局与组件样式 -->
+  <link rel="stylesheet" href="style.css?v=43">
+</head>
+
+<body>
+  <!-- 整个应用容器：纯黑背景，防烧屏偏移作用于此元素 -->
+  <div id="app">
+
+    <!-- ============ 顶部连接状态栏 ============ -->
+    <header id="status-bar">
+      <div id="conn-status" aria-live="polite">
+        <span id="conn-dot" class="conn-dot dot-off"></span>
+        <span id="conn-text">未连接</span>
+      </div>
+      <div id="status-actions">
+        <button id="btn-refresh" class="icon-btn" title="刷新页面" aria-label="刷新页面">[ RELOAD ]</button>
+        <button id="btn-fullscreen" class="icon-btn" title="全屏" aria-label="全屏">[ FULL ]</button>
+        <button id="btn-settings" class="icon-btn" title="设置" aria-label="设置">[ SET ]</button>
+      </div>
+    </header>
+
+    <!-- ============ 可滑动面板区域 ============ -->
+    <main id="panels-viewport">
+      <div id="panels-track">
+
+        <section class="panel" data-panel="system">
+          <h2 class="panel-title">系统监控 / SYSTEM</h2>
+          <div class="panel-body" id="panel-system-body"></div>
+        </section>
+
+        <section class="panel" data-panel="agents">
+          <h2 class="panel-title">Agents 状态 / AGENTS</h2>
+          <div class="panel-body" id="panel-agents-body"></div>
+        </section>
+
+        <section class="panel" data-panel="token">
+          <h2 class="panel-title">Token 用量 / TOKEN</h2>
+          <div class="panel-body" id="panel-token-body"></div>
+        </section>
+
+        <section class="panel" data-panel="weather">
+          <h2 class="panel-title">天气 / WEATHER</h2>
+          <div class="panel-body" id="panel-weather-body"></div>
+        </section>
+
+        <section class="panel" data-panel="keyboard">
+          <h2 class="panel-title">键盘 / KEYBOARD</h2>
+          <div class="panel-body" id="panel-keyboard-body"></div>
+        </section>
+
+        <section class="panel" data-panel="extensions">
+          <h2 class="panel-title">扩展 / EXTENSIONS</h2>
+          <div class="panel-body" id="panel-extensions-body"></div>
+        </section>
+
+        <section class="panel" data-panel="settings">
+          <h2 class="panel-title">设置 / SETTINGS</h2>
+          <div class="panel-body" id="panel-settings-body"></div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ============ 底部面板指示器（小圆点） ============ -->
+    <nav id="indicators" aria-label="面板切换指示器"></nav>
+
+  </div>
+
+  <!-- 脚本顺序：蓝牙封装 -> 面板模块 -> 主逻辑
+       panels.js 带版本号：改动 panels.js 时把 v= 后缀一起改，绕过 Service Worker 旧缓存 -->
+  <script src="bluetooth.js"></script>
+  <script src="panels.js?v=43"></script>
+  <script src="app.js?v=43"></script>
+</body>
+</html>

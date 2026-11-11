@@ -1,0 +1,65 @@
+{
+  "_说明": "Windows 硬件监控 AMOLED 手机仪表盘 - 后端配置。所有字段均可省略，省略时使用内置默认值。",
+  "collect_interval": 2.0,
+  "static_port": 8090,
+  "websocket_port": 8091,
+  "enable_https": false,
+  "https_certfile": "certs/server.crt",
+  "https_keyfile": "certs/server.key",
+  "enable_bluetooth": false,
+  "bluetooth_device_name": "WinMonitor",
+  "bluetooth_service_uuid": "0000ffe0-0000-1000-8000-00805f9b34fb",
+  "bluetooth_characteristic_uuid": "0000ffe1-0000-1000-8000-00805f9b34fb",
+  "debug": false,
+  "use_mock": false,
+  "extensions": {
+    "clock": true,
+    "weather": true,
+    "token_usage": false,
+    "agents_status": true,
+    "opencode_usage": true
+  },
+  "opencode_usage": {
+    "db_path": "C:/Users/RonNurKe/.local/share/opencode/opencode.db",
+    "cache_seconds": 60
+  },
+  "weather": {
+    "city": "苏州",
+    "latitude": null,
+    "longitude": null,
+    "update_minutes": 15
+  },
+  "_agents_说明": "AI 代理状态：OpenCode 走插件推送，WorkBuddy 走会话文件观察（.jsonl 尾部推断）",
+  "agents_status": {
+    "stale_timeout": 300,
+    "workbuddy": {
+      "enabled": true,
+      "roots": [
+        "~/.workbuddy/projects",
+        "~/.workbuddy-ai/projects"
+      ],
+      "scan_interval": 1.0,
+      "idle_quiet": 6.0,
+      "max_sessions": 8,
+      "only_projects": []
+    }
+  },
+  "opencode_stale_timeout": 300,
+  "burn_in_shift": true,
+  "_keys_说明": "全局按键采集：Raw Input 后台捕获，独立端口实时推送，供『键盘』面板使用",
+  "keys": {
+    "enabled": true,
+    "port": 8092,
+    "device_filter": "",
+    "_keymap_说明": "Vial 导出的 .vil 键位表；配了才会做层解析（输出码 -> 物理位置 + 当前层）",
+    "keymap": "keymap.vil",
+    "layer_idle_revert": 0.6,
+    "_matrix_说明": "混合模式：直读固件矩阵（厂商接口 0xFF60），层键按下即生效；读不到自动退回输出码推断",
+    "matrix": {
+      "enabled": true,
+      "vid_pid": "E118:0001",
+      "interval_ms": 20,
+      "retry_seconds": 5
+    }
+  }
+}

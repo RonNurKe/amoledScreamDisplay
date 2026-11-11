@@ -1,0 +1,22 @@
+# Windows Hardware Monitor AMOLED Dashboard - backend dependencies
+# Target: Windows + Python 3.7+
+# NOTE: keep this file ASCII-only. pip decodes requirements files with the
+#       system locale encoding on Windows (e.g. GBK on zh-CN); non-ASCII
+#       comments would crash old pip versions without a BOM.
+
+# Required: local hardware metrics (CPU / memory / disk / network)
+psutil>=5.7.0
+
+# Required for hybrid keyboard mode: talk to the firmware vendor HID
+# interface (usage page 0xFF60) to read the raw key matrix. Without this
+# package keys.py still works, it just falls back to inferring the active
+# layer from HID output codes (scheme A) instead of reading the matrix.
+hidapi>=0.14.0
+
+# Optional: print a QR code of the frontend URL to the console
+#           (uncomment to enable)
+# qrcode>=6.1
+
+# Note: the WebSocket push server is implemented with the Python standard
+#       library (socket / threading); no websockets / aiohttp needed, so the
+#       third-party dependency list stays minimal on purpose.

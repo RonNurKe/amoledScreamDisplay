@@ -1,0 +1,9 @@
+/.idea/
+/docs/
+/.openchamber/
+/plan.md
+/backend/venv/
+/backend/venv37_backup/
+/backend/__pycache__/
+/backend/autostart.log
+/README.full.md

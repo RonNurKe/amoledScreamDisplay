@@ -1,0 +1,145 @@
+/* ============================================================
+   theme.css - 终端 / CLI 日志流主题变量
+   风格定位：黑客终端 · 8-bit 像素 · 霓虹单色点缀 · 纯文本驱动
+   规律：低饱和暗底 + 高饱和霓虹点缀色，一色一语义。
+   目标屏幕 AMOLED：背景纯黑 #000000。
+   ============================================================ */
+
+:root {
+  --bg: #000000;        /* 纯黑，无底图 */
+  --text-1: #E9EDF1;    /* 标题 近白 */
+  --text-2: #7E8899;    /* 描述 灰蓝 */
+  --cyan: #12E2C5;      /* 数据指标 */
+  --green: #2CE44E;     /* 像素图标 / 正常 / 完成 */
+  --blue: #5E6BFF;      /* 命令 / 链接 / 按钮 */
+  --purple: #8B7BFF;    /* 特殊状态 / 异常 / 提问 */
+  --amber: #D2A233;     /* 副标签：键帽上印的第二层字符（层 1） */
+  --amber-dim: #96751F; /* 副标签的上档符号（Shift 字符），再暗一档 */
+
+  --mono: "JetBrains Mono", "IBM Plex Mono", "SF Mono", "Cascadia Mono",
+          Consolas, "Microsoft YaHei", "Noto Sans SC", monospace;
+
+  /* 根字号：设置面板可调（12~17px），全部文字用 rem 随之缩放 */
+  --fs-root: 13px;
+
+  /* 霓虹发光（微弱，CRT 质感，不过曝） */
+  --glow-cyan:   0 0 8px rgba(18, 226, 197, 0.40);
+  --glow-green:  0 0 8px rgba(44, 228, 78, 0.35);
+  --glow-blue:   0 0 8px rgba(94, 107, 255, 0.40);
+  --glow-purple: 0 0 8px rgba(139, 123, 255, 0.40);
+  --glow-text:   0 0 6px rgba(233, 237, 241, 0.18);
+
+  /* 无圆角 无描边 无卡片 无分割线，大留白分条 */
+}
+
+/* ------------------------------------------------------------
+   8-bit 像素块图标
+   单个 6px 方块 + box-shadow 复制出 4~6 个方块簇，
+   currentColor 换色，drop-shadow 提供轻微霓虹发光。
+   ------------------------------------------------------------ */
+.px {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  display: inline-block;
+  background: currentColor;
+  margin-right: 20px;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+/* 形状 A：十字簇（中心 + 上下左右 = 5 块） */
+.px-a {
+  box-shadow:
+    7px 0 0 currentColor,
+    -7px 0 0 currentColor,
+    0 7px 0 currentColor,
+    0 -7px 0 currentColor;
+}
+/* 形状 B：阶梯簇（5 块） */
+.px-b {
+  box-shadow:
+    7px 0 0 currentColor,
+    14px 0 0 currentColor,
+    7px 7px 0 currentColor,
+    0 7px 0 currentColor;
+}
+/* 形状 C：L 形簇（4 块） */
+.px-c {
+  box-shadow:
+    7px 0 0 currentColor,
+    0 7px 0 currentColor,
+    7px 7px 0 currentColor;
+}
+
+/* 一色一语义 */
+.px-cyan   { color: var(--cyan); }
+.px-green  { color: var(--green); }
+.px-blue   { color: var(--blue); }
+.px-purple { color: var(--purple); }
+
+/* ------------------------------------------------------------
+   防烧屏机制 1：定时位置偏移（30~120s 随机，±12px）
+   ------------------------------------------------------------ */
+#app.burn-in-shift {
+  transition: transform 2.8s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* ------------------------------------------------------------
+   防烧屏机制 2：屏保模式（无操作 20 秒）
+   调暗作用点在具体内容块而非 #app：
+   OpenCode 会话行中"非空闲 / 刚进入空闲(≤10s)"的行可保持原亮度
+   （漂移仍作用于 #app，最亮的元素跟着漂移）
+   ------------------------------------------------------------ */
+body.screen-saver-mode #app {
+  animation: saver-drift 150s ease-in-out infinite alternate;
+}
+
+@keyframes saver-drift {
+  0%   { transform: translate(-18px, -10px) scale(1.02); }
+  100% { transform: translate(18px, 10px)  scale(1.02); }
+}
+
+body.screen-saver-mode #indicators,
+body.screen-saver-mode #status-bar {
+  opacity: 0.15;
+}
+
+/* 内容压暗：各面板的内容容器（含 OpenCode 事件日志）与面板头行。
+   OpenCode 概要容器（.ag-head）排除——其 .metrics 内的会话行有
+   独立的亮度豁免逻辑，压暗下沉到该条目的标题/描述上 */
+body.screen-saver-mode .panel-body > .entries:not(.ag-head),
+body.screen-saver-mode .panel-body > .entry,
+body.screen-saver-mode .panel-head {
+  opacity: 0.38;
+}
+body.screen-saver-mode .ag-head .entry > .entry-head,
+body.screen-saver-mode .ag-head .entry > .entry-desc {
+  opacity: 0.38;
+}
+
+/* ------------------------------------------------------------
+   防烧屏机制 2-B：二级熄屏（无操作 40 秒）
+   #app 整体透明度归零——AMOLED 纯黑像素不发光，等效息屏但
+   Wake Lock 仍在、数据连接仍在，任意交互 1.2s 内渐亮唤醒。
+   同时暂停全部 CSS 动画（漂移/闪烁/闪烁点名）节省耗电。
+   ------------------------------------------------------------ */
+body.screen-off-mode #app {
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+body.screen-off-mode #app,
+body.screen-off-mode #app * {
+  animation-play-state: paused;
+}
+
+/* ------------------------------------------------------------
+   文字微光工具类（CRT 终端质感）
+   ------------------------------------------------------------ */
+.glow-cyan   { text-shadow: var(--glow-cyan); }
+.glow-green  { text-shadow: var(--glow-green); }
+.glow-blue   { text-shadow: var(--glow-blue); }
+.glow-purple { text-shadow: var(--glow-purple); }
+.glow-text   { text-shadow: var(--glow-text); }
+
+/* 等宽数字：数值跳动时不抖动版式 */
+.num { font-variant-numeric: tabular-nums; }
