@@ -535,6 +535,27 @@ body.screen-off-mode #ss-widget { display: block; }
 }
 .tswitch.off { color: var(--text-2); }
 
+/* 开关条：来源 [ALL][OC][WB] · 视图 [SESSION][MODEL]，单行排布 */
+.togbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  margin: 0 0 14px 20px;
+}
+.togbar .tswitch {
+  min-height: 34px;
+  padding: 6px 4px;
+  font-size: 0.82rem;
+  letter-spacing: 0.5px;
+}
+.togbar .togsep {
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  padding: 0 6px;
+}
+
 /* 字号调节控件：[-] 13px [+] */
 .set-row .k { font-size: 0.92rem; }
 .fs-ctrl {

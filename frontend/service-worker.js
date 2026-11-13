@@ -7,7 +7,7 @@
    - WebSocket 连接不受 Service Worker 影响。
    ============================================================ */
 
-var CACHE_NAME = 'amoled-dashboard-v43';
+var CACHE_NAME = 'amoled-dashboard-v44';
 
 /* 安装时预缓存的核心资源列表 */
 var PRECACHE = [

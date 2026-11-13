@@ -26,11 +26,14 @@ from collections import OrderedDict
 from typing import Optional
 
 import opencode_usage
+import token_merge
 import weather
+import workbuddy_usage
 
 # 内置扩展名（拥有独立的顶级键，前端有对应专用面板）
 BUILTIN_NAMES = ("clock", "weather", "token_usage", "agents_status",
-                 "opencode_status", "opencode_usage")
+                 "opencode_status", "opencode_usage", "workbuddy_usage",
+                 "token_usage_all")
 
 # 兼容别名：旧前端/脚本读 extensions.opencode_status，双写一个版本后移除
 ALIASES = {"agents_status": "opencode_status"}
@@ -170,6 +173,32 @@ def token_usage_data():
     }
 
 
+def token_usage_all_data(switches=None, list_limit=6):
+    """
+    合并 OpenCode + WorkBuddy 两路本地 token 用量。
+
+    :param switches:   {"opencode": bool, "workbuddy": bool}，关闭的来源直接跳过
+    :param list_limit: models / by_session 保留条数
+    :return:           与单一来源同结构的汇总 payload；两路都关时返回 {}
+    说明：两个来源各自带缓存，这里只是加法，不会真的重复读磁盘/数据库。
+    """
+    flags = switches or {}
+    parts = []
+    if flags.get("opencode", True):
+        try:
+            parts.append(opencode_usage.current())
+        except Exception:
+            pass
+    if flags.get("workbuddy", True):
+        try:
+            parts.append(workbuddy_usage.current())
+        except Exception:
+            pass
+    if not parts:
+        return {}
+    return token_merge.combine(parts, list_limit)
+
+
 def register_builtin_extensions(config=None):
     """
     注册全部内置扩展，并根据 config["extensions"] 中的开关决定默认启用状态。
@@ -180,6 +209,7 @@ def register_builtin_extensions(config=None):
     # 天气 / 本地 token 用量模块：传入完整 config
     weather.configure(config)
     opencode_usage.configure(config)
+    workbuddy_usage.configure(config)
     register_extension("clock", clock_data, enabled=switches.get("clock", True))
     register_extension("weather", weather_data, enabled=switches.get("weather", False))
     register_extension("token_usage", token_usage_data,
@@ -188,6 +218,20 @@ def register_builtin_extensions(config=None):
     # 本地 OpenCode token 用量（直读 opencode.db，只读）
     register_extension("opencode_usage", opencode_usage.current,
                        enabled=switches.get("opencode_usage", True))
+
+    # WorkBuddy token 用量（增量扫描 ~/.workbuddy{,-ai}/projects/**/*.jsonl）
+    register_extension("workbuddy_usage", workbuddy_usage.current,
+                       enabled=switches.get("workbuddy_usage", True))
+
+    # 两路本地用量的合并视图（面板的 ALL 视图直接读这份，规则见 token_merge.py）
+    _usage_switches = {
+        "opencode": switches.get("opencode_usage", True),
+        "workbuddy": switches.get("workbuddy_usage", True),
+    }
+    register_extension(
+        "token_usage_all",
+        lambda: token_usage_all_data(_usage_switches),
+        enabled=switches.get("token_usage_all", True))
 
     # AI 代理（Agents）状态：OpenCode 插件推送 + WorkBuddy 观察器写入
     # 接收端点见 web_server.py，WorkBuddy 侧见 workbuddy_watch.py

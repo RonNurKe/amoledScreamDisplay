@@ -345,6 +345,9 @@
     /* 统计方式：session（按会话）/ model（按模型），持久化 */
     this.view = localStorage.getItem('dash.tokenView') === 'model'
       ? 'model' : 'session';
+    /* 数据来源：all（合并）/ oc（OpenCode）/ wb（WorkBuddy），持久化 */
+    var src = localStorage.getItem('dash.tokenSource');
+    this.source = (src === 'oc' || src === 'wb') ? src : 'all';
   }
   TokenPanel.prototype = Object.create(D.BasePanel.prototype);
 
@@ -352,24 +355,47 @@
     return v ? ' · $' + Number(v).toFixed(3) : '';
   }
 
+  /* 平台信用点（WorkBuddy 侧只有 credit，没有美元成本） */
+  function tokenCredit(v) {
+    if (!v) return '';
+    var n = Number(v);
+    return ' · ' + (n >= 100 ? n.toFixed(0) : n.toFixed(1)) + ' cr';
+  }
+
+  var SOURCE_TAG = { opencode: '[OC] ', workbuddy: '[WB] ' };
+
   TokenPanel.prototype.init = function () {
     var self = this;
     this.body.innerHTML = '';
     this.wrap = D._panelHelpers.el('<div class="entries"></div>');
     this.body.appendChild(this.wrap);
 
-    this.e = entry('px-a', 'px-cyan', 'TOKEN · LOCAL OPENCODE');
+    this.e = entry('px-a', 'px-cyan', 'TOKEN · ALL AGENTS');
     this.wrap.appendChild(this.e.root);
 
-    /* 概要 + 统计方式切换（双列网格中的两个文本开关） */
-    this.eSum = entry('px-b', 'px-green', 'TOKEN · SUMMARY');
-    this.wrap.appendChild(this.eSum.root);
-    this.btnSession = D._panelHelpers.el('<button class="tswitch">[ SESSION ]</button>');
-    this.btnModel = D._panelHelpers.el('<button class="tswitch">[ MODEL ]</button>');
+    /* 开关条：来源 [ALL][OC][WB] ＋ 视图 [SESSION][MODEL] */
+    this.tog = D._panelHelpers.el('<div class="togbar"></div>');
+    this.wrap.appendChild(this.tog);
+
+    this.btnAll = D._panelHelpers.el('<button class="tswitch">[ALL]</button>');
+    this.btnOc = D._panelHelpers.el('<button class="tswitch">[OC]</button>');
+    this.btnWb = D._panelHelpers.el('<button class="tswitch">[WB]</button>');
+    this.btnSession = D._panelHelpers.el('<button class="tswitch">[SESSION]</button>');
+    this.btnModel = D._panelHelpers.el('<button class="tswitch">[MODEL]</button>');
+
+    this.btnAll.addEventListener('click', function () { self._setSource('all'); });
+    this.btnOc.addEventListener('click', function () { self._setSource('oc'); });
+    this.btnWb.addEventListener('click', function () { self._setSource('wb'); });
     this.btnSession.addEventListener('click', function () { self._setView('session'); });
     this.btnModel.addEventListener('click', function () { self._setView('model'); });
-    this.eSum.metrics.appendChild(this.btnSession);
-    this.eSum.metrics.appendChild(this.btnModel);
+
+    var sep = D._panelHelpers.el('<span class="togsep">·</span>');
+    this.tog.appendChild(this.btnAll);
+    this.tog.appendChild(this.btnOc);
+    this.tog.appendChild(this.btnWb);
+    this.tog.appendChild(sep);
+    this.tog.appendChild(this.btnSession);
+    this.tog.appendChild(this.btnModel);
     this._paintToggle();
 
     /* 明细列表（按会话 / 按模型） */
@@ -384,7 +410,17 @@
     this._paint();
   };
 
+  TokenPanel.prototype._setSource = function (source) {
+    this.source = source;
+    localStorage.setItem('dash.tokenSource', source);
+    this._paintToggle();
+    this._paint();
+  };
+
   TokenPanel.prototype._paintToggle = function () {
+    this.btnAll.className = 'tswitch' + (this.source === 'all' ? '' : ' off');
+    this.btnOc.className = 'tswitch' + (this.source === 'oc' ? '' : ' off');
+    this.btnWb.className = 'tswitch' + (this.source === 'wb' ? '' : ' off');
     this.btnSession.className = 'tswitch' + (this.view === 'session' ? '' : ' off');
     this.btnModel.className = 'tswitch' + (this.view === 'model' ? '' : ' off');
   };
@@ -394,17 +430,38 @@
     this._paint();
   };
 
+  /* 按当前来源取对应 payload */
+  TokenPanel.prototype._payload = function () {
+    var ext = this._latest || {};
+    if (this.source === 'oc') return ext.opencode_usage;
+    if (this.source === 'wb') return ext.workbuddy_usage;
+    return ext.token_usage_all || ext.opencode_usage;
+  };
+
+  TokenPanel.prototype._title = function () {
+    if (this.source === 'oc') return 'TOKEN · LOCAL OPENCODE';
+    if (this.source === 'wb') return 'TOKEN · WORKBUDDY';
+    return 'TOKEN · ALL AGENTS';
+  };
+
   TokenPanel.prototype._paint = function () {
     var ext = this._latest;
-    var u = ext && ext.opencode_usage;
+    var u = this._payload();
 
-    /* 本地 OpenCode 用量（优先）：直读 opencode.db 的汇总 */
+    /* 本地用量（优先）：opencode.db / WorkBuddy 日志 / 两者合并 */
     if (u && u.enabled && u.available) {
       var total = u.total || {};
       var today = u.today || {};
       var upd = (u.updated_at || '').substring(11, 19) || '--';
-      this.e.setTitle('TOKEN · LOCAL OPENCODE');
-      this.e.setDesc(u.sessions + ' sessions · 更新 ' + upd);
+      var desc = u.sessions + ' sessions';
+      if (this.source === 'all') {
+        var avail = (u.sources || []).filter(function (s) { return s.available; }).length;
+        desc = avail + ' sources · ' + desc;
+      } else if (this.source === 'wb') {
+        desc = (u.files || 0) + ' files · ' + desc;
+      }
+      this.e.setTitle(this._title());
+      this.e.setDesc(desc + ' · 更新 ' + upd);
       this.e.clear();
       this.e.metric('TOTAL', Utils.formatTokens(total.all) + ' · ' + (total.calls || 0) + '次');
       this.e.metric('TODAY', '+' + Utils.formatTokens(today.all) + ' · ' + (today.calls || 0) + '次');
@@ -413,8 +470,19 @@
       this.e.metric('LAST MONTH', '+' + Utils.formatTokens((u.last_month || {}).all) + ' · ' + ((u.last_month || {}).calls || 0) + '次');
       this.e.metric('INPUT', Utils.formatTokens(total.input));
       this.e.metric('OUTPUT', Utils.formatTokens(total.output));
+      /* 合并视图：把两路各自的总量摊开，一眼看出谁在烧 */
+      if (this.source === 'all') {
+        (u.sources || []).forEach(function (s) {
+          if (!s.available) return;
+          var label = s.source === 'workbuddy' ? 'WB' : 'OC';
+          this.e.metric(label, Utils.formatTokens(s.total));
+        }, this);
+      }
       if (u.cost) {
         this.e.metric('COST', '$' + Number(u.cost).toFixed(3), 'green');
+      }
+      if (u.credit) {
+        this.e.metric('CREDITS', tokenCredit(u.credit).replace(' · ', ''), 'purple');
       }
 
       var bySession = this.view === 'session';
@@ -434,10 +502,23 @@
         } else {
           name = it.model || '--';
         }
+        /* 合并视图下打来源徽标，单来源视图不打 */
+        name = (this.source === 'all' ? (SOURCE_TAG[it.source] || '') : '') + name;
         this.eList.metric(name,
-          Utils.formatTokens(it.all) + tokenCost(it.cost),
+          Utils.formatTokens(it.all) + tokenCost(it.cost) + tokenCredit(it.credit),
           bySession ? 'blue' : 'cyan', true);
       }
+      return;
+    }
+
+    /* 本地用量不可用（如所选来源未启用 / 还没数据） */
+    if (u && u.enabled && !u.available) {
+      this.e.setTitle(this._title());
+      this.e.setDesc('本地统计不可用 · ' + (u.reason || 'no data'));
+      this.e.clear();
+      this.e.metric('STATUS', 'no data', 'purple');
+      this.eList.clear();
+      this.eList.metric('STATUS', 'no data', 'dim');
       return;
     }
 
@@ -454,10 +535,10 @@
       var p = Number(t.percent) || 0;
       this.e.bar(p);
     } else {
-      this.e.setTitle('TOKEN · USAGE');
-      this.e.setDesc(u && u.enabled
+      this.e.setTitle(this._title());
+      this.e.setDesc((u && u.enabled)
         ? ('本地统计不可用 · ' + (u.reason || 'no data'))
-        : '等待 Token 数据接入 · token_usage extension disabled or no data');
+        : '该来源未启用 · 见 backend\\config.json 的 extensions 段');
       this.e.clear();
       this.e.metric('STATUS', 'no data', 'purple');
     }

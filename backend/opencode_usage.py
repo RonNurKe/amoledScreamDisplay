@@ -372,20 +372,21 @@ def _aggregate_messages(cur, limit):
         except (TypeError, ValueError):
             continue
 
-        # 时间分桶（消息时间戳）；命中窗口即计一次模型调用
+        # 时间分桶（消息时间戳）。窗口是**累积**的：today ⊂ week ⊂ month，
+        # 与 _buckets_from_sessions 的 SQL 口径一致（那里也是只设下界）。
         ts = _message_time_ms(d)
-        bucket = None
         if ts >= today_ms:
-            bucket = today
-        elif ts >= week_ms:
-            bucket = week
-        elif ts >= month_ms:
-            bucket = month
+            _add_tokens(today, inp, out)
+            today["calls"] += 1
+        if ts >= week_ms:
+            _add_tokens(week, inp, out)
+            week["calls"] += 1
+        if ts >= month_ms:
+            _add_tokens(month, inp, out)
+            month["calls"] += 1
         elif ts >= last_month_ms:
-            bucket = last_month
-        if bucket is not None:
-            _add_tokens(bucket, inp, out)
-            bucket["calls"] += 1
+            _add_tokens(last_month, inp, out)
+            last_month["calls"] += 1
 
         # 全历史调用次数（每条带 tokens 的消息算一次，与窗口无关）
         total_calls += 1

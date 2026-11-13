@@ -17,11 +17,22 @@
     "weather": true,
     "token_usage": false,
     "agents_status": true,
-    "opencode_usage": true
+    "opencode_usage": true,
+    "workbuddy_usage": true,
+    "token_usage_all": true
   },
   "opencode_usage": {
     "db_path": "C:/Users/RonNurKe/.local/share/opencode/opencode.db",
     "cache_seconds": 60
+  },
+  "_workbuddy_usage_说明": "扫描 WorkBuddy 会话日志（JSONL）里的 providerData.rawUsage；增量按字节偏移，不会重复解析全文件。roots 给到 .workbuddy 或 .workbuddy/projects 都认",
+  "workbuddy_usage": {
+    "roots": [
+      "~/.workbuddy/projects",
+      "~/.workbuddy-ai/projects"
+    ],
+    "cache_seconds": 60,
+    "list_limit": 6
   },
   "weather": {
     "city": "苏州",
